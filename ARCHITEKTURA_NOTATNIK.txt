@@ -1,0 +1,181 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        ARCHITEKTURA SYSTEMU ATM                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  WARSTWA PREZENTACJI                                                            │ 
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐        │
+│  │ PySide6 GUI                                                         │        │
+│  │  • Interfejs użytkownika                                            │        │
+│  │  • Okna dialogowe                                                   │        │
+│  │  • Sterowanie operacjami (wypłata, wpłata, admin)                   │        │
+│  └─────────────────────────────────────────────────────────────────────┘        │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│   WARSTWA BIZNESOWA                                                             │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────────────────|──────────────────────────────────┐             │
+│  │ Autentykacja                │ Klasa ATM                        |             │
+│  │ • Weryfikacja logowania     │ • Funkcja withdraw (wypłata)     |             │
+│  │ • Obsługa PIN (4-8 cyfr)    │ • Funkcja deposit (wpłata)       |             │
+│  │ • Rozróżnianie adminów      │ • Zarządzanie saldami banknotów  |             │
+│  │                             │                                  |             │
+│  │ ↓ weryfikuje                │ ↓ rejestruje operacje            |             │
+│  └────────────┬────────────────┘──────────────────────────────────┘             │
+│               │                                                                 │
+│  ┌────────────────────────────────────┐                                         │
+│  │ Algorytm Backtracking              │                                         │
+│  │ • Optymalizacja wypłat             │                                         │
+│  │ • Wybór kombinacji nominałów       │                                         │
+│  │ • Limity węzłów i głębokości       │                                         │
+│  │ • Zapobieganie zawieszeniu         │                                         │
+│  └────────────────────────────────────┘                                         │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  SYSTEM LOGOWANIA                                                               │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  atmlog-withdraws.log         (Log wszystkich wypłat)                           │
+│  atmlog-deposits.log          (Log wszystkich wpłat)                            │
+│  atmlog-admin.log             (Log działań administratorów)                     │
+│  atmlog-transactions.log      (Log wszystkich transakcji)                       │
+│                                                                                 │
+│  Lokalizacja: ./logs/                                                           │
+│  Format: UTF-8, timestamp | level | message                                     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ WARSTWA DANYCH - SQLite3 (atm.db)                                               │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌────────────────────────────────────────────────────────────────┐             │
+│  │ Tabela: clients                                                │             │
+│  │ ├─ client_id (TEXT PRIMARY KEY) - Numer klienta (7 cyfr)       │             │
+│  │ ├─ pin (TEXT) - PIN (4 lub 8 cyfr)                             │             │
+│  │ ├─ name (TEXT) - Imię i nazwisko                               │             │
+│  │ ├─ balance (REAL) - Saldo konta                                │             │
+│  │ ├─ is_admin (INTEGER) - Flaga administratora                   │             │
+│  │ └─ created_at (TIMESTAMP) - Data utworzenia                    │             │
+│  └────────────────────────────────────────────────────────────────┘             │
+│                                                                                 │
+│  ┌────────────────────────────────────────────────────────────────┐             │
+│  │ Tabela: banknote_balance                                       │             │
+│  │ ├─ denomination (INTEGER PRIMARY KEY) - Nominał (10-500)       │             │
+│  │ └─ quantity (INTEGER) - Ilość banknotów w kasie                │             │
+│  └────────────────────────────────────────────────────────────────┘             │
+│                                                                                 │
+│  ┌────────────────────────────────────────────────────────────────┐             │
+│  │ Tabela: overflow_balance                                       │             │
+│  │ ├─ denomination (INTEGER PRIMARY KEY) - Nominał                │             │
+│  │ └─ quantity (INTEGER) - Ilość banknotów w depozycie            │             │
+│  └────────────────────────────────────────────────────────────────┘             │
+│                                                                                 │
+│  ┌────────────────────────────────────────────────────────────────┐             │
+│  │ Tabela: transactions                                           │             │
+│  │ ├─ transaction_id (INTEGER PRIMARY KEY AUTOINCREMENT)          │             │
+│  │ ├─ client_id (TEXT FOREIGN KEY) - Numer klienta                │             │
+│  │ ├─ transaction_type (TEXT) - Typ: WITHDRAWAL/DEPOSIT           │             │
+│  │ ├─ amount (REAL) - Kwota operacji                              │             │
+│  │ ├─ timestamp (TIMESTAMP) - Data i czas operacji                │             │
+│  │ └─ details (TEXT) - Szczegóły (jakie banknoty)                 │             │
+│  └────────────────────────────────────────────────────────────────┘             │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          PRZEPŁYW DANYCH                                       ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+1. LOGOWANIE
+   Użytkownik → GUI (PySide6) → Autentykacja → SQLite (clients)
+                                    ↓
+                            Log (atmlog-admin.log)
+
+2. WYPŁATA
+   Użytkownik → GUI → ATM.withdraw() → Algorytm Backtracking
+                          ↓
+                      SQLite (banknote_balance, transactions)
+                          ↓
+                      Log (atmlog-withdraws.log + atmlog-transactions.log)
+
+3. WPŁATA
+   Użytkownik → GUI → ATM.deposit() → Aktualizacja stanów
+                          ↓
+                      SQLite (banknote_balance, overflow_balance, transactions)
+                          ↓
+                      Log (atmlog-deposits.log + atmlog-transactions.log)
+
+4. OPERACJE ADMIN
+   Admin → GUI → Zarządzanie banknotami → SQLite
+                          ↓
+                      Log (atmlog-admin.log)
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                      KONTA DO TESTOWANIA                                       ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+SUPERADMINISTRATOR
+└─ ID: 0000001
+└─ PIN: 12345678
+└─ Nazwa: Superadministrator
+└─ Uprawnienia: Pełny dostęp do systemu
+
+ADMINISTRATOR
+└─ ID: 1014872
+└─ PIN: 10221142
+└─ Nazwa: Administrator
+└─ Uprawnienia: Zarządzanie banknotami
+
+KLIENT NORMALNY #1
+└─ ID: 1234567
+└─ PIN: 1234
+└─ Nazwa: Jan Kowalski
+└─ Dostęp: Wypłata, wpłata
+
+KLIENT NORMALNY #2
+└─ ID: 2345678
+└─ PIN: 5678
+└─ Nazwa: Maria Nowak
+└─ Dostęp: Wypłata, wpłata
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        NOMINAŁY BANKNOTÓW                                      ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Dostępne nominały w kasie:
+├─ 10 zł   (pojemność: 50 sztuk)
+├─ 20 zł   (pojemność: 50 sztuk)
+├─ 50 zł   (pojemność: 40 sztuk)
+├─ 100 zł  (pojemność: 30 sztuk)
+├─ 200 zł  (pojemność: 30 sztuk)
+└─ 500 zł  (pojemność: 25 sztuk)
+
+Depozyt (overflow) - dla banknotów, które się nie zmieściły w kasie
+
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                     TECHNOLOGIE I NARZĘDZIA                                    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+FRONTEND
+└─ PySide6 (6.6.2)         - Framework GUI (Qt dla Pythona)
+
+BACKEND
+└─ Python 3.11.5          - Język programowania
+└─ SQLite3                - Baza danych
+└─ Logging                - System logowania wbudowany w Python
+
+NARZĘDZIA DEWELOPERSKIE
+└─ VS Code 1.87.0         - Edytor kodu
+└─ Anaconda3 (base)       - Zarządzanie pakietami
